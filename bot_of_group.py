@@ -146,5 +146,26 @@ async def main():
     init_db()
     await dp.start_polling(bot)
 
+# Добавь эти импорты в самый верх файла к остальным
+import os
+from aiohttp import web
+
+# Замени весь низ файла на это:
+async def run_bot():
+    init_db()
+    # Создаем фиктивный веб-сервер для Render
+    app = web.Application()
+    # Render будет стучаться в этот порт, и бот ему ответит "я живой"
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, '0.0.0.0', int(os.getenv('PORT', 2309)))
+    await site.start()
+    
+    logging.info("Фиктивный веб-сервер запущен, начинаем опрос бота...")
+    await dp.start_polling(bot)
+
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(run_bot())
+    except (KeyboardInterrupt, SystemExit):
+        logging.info("Бот остановлен")
