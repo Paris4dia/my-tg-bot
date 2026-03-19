@@ -15,11 +15,11 @@ bot = Bot(token=TOKEN)
 dp = Dispatcher()
 logging.basicConfig(level=logging.INFO)
 
-# --- БАЗА ДАННЫХ С УСКОРЕНИЕМ ---
+# --- УСКОРЕННАЯ БАЗА ДАННЫХ ---
 def get_db_connection():
-    # timeout=10 заставляет бота ждать, а не выдавать ошибку сразу
+    # timeout=10 заставляет бота подождать, если файл занят
     conn = sqlite3.connect('bot_data.db', timeout=10)
-    # Включаем быстрый режим WAL
+    # Включаем режим WAL для скорости и стабильности на Render
     conn.execute('PRAGMA journal_mode=WAL;')
     return conn
 
@@ -40,7 +40,7 @@ def get_anon(user_id):
         conn.close()
         return res[0] if res else 1
     except Exception as e:
-        logging.error(f"DB Read Error: {e}")
+        logging.error(f"Ошибка чтения БД: {e}")
         return 1
 
 def toggle_anon_db(user_id):
@@ -54,7 +54,7 @@ def toggle_anon_db(user_id):
         conn.close()
         return new_val
     except Exception as e:
-        logging.error(f"DB Write Error: {e}")
+        logging.error(f"Ошибка записи БД: {e}")
         return 1
 
 # --- СОСТОЯНИЯ ---
@@ -92,11 +92,10 @@ async def toggle_callback(callback: types.CallbackQuery):
     builder = InlineKeyboardBuilder()
     builder.row(types.InlineKeyboardButton(text="Переключить статус", callback_data="toggle_anon"))
     
-    # Сначала отвечаем на колбэк, чтобы убрать "часики"
-    await callback.answer()
-    # Потом обновляем текст
+    await callback.answer() # Убирает "часики" на кнопке
     await callback.message.edit_text(f"Статус изменен!\nТеперь: {status_text}", reply_markup=builder.as_markup())
 
+# Поиск слов "жалоб" или "предложен" в любом регистре
 @dp.message(lambda message: message.text and ("жалоб" in message.text.lower() or "предложен" in message.text.lower()))
 async def start_fb(message: types.Message, state: FSMContext):
     type_fb = "жалобу" if "жалоб" in message.text.lower() else "предложение"
@@ -140,7 +139,7 @@ async def admin_reply_send(message: types.Message, state: FSMContext):
         await bot.send_message(data['reply_to'], f"✉️ **Ответ администрации:**\n\n{message.text}")
         await message.answer("Ответ отправлен! ✅")
     except Exception as e:
-        await message.answer(f"Ошибка: {e}")
+        await message.answer(f"Ошибка отправки: {e}")
     await state.clear()
 
 async def main():
