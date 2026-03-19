@@ -56,9 +56,11 @@ def main_menu():
 
 # --- ОБРАБОТЧИКИ ---
 
+# --- ОБРАБОТЧИКИ ---
+
 @dp.message(Command("start"))
 async def cmd_start(message: types.Message):
-    await message.answer("Добро пожаловать дорогой друг! Выберите действие ниже и не переживайте(наши админы не голодны):", reply_markup=main_menu())
+    await message.answer("Добро пожаловать дорогой друг! Выберите действие ниже и не переживайте (наши админы не голодны):", reply_markup=main_menu())
 
 @dp.message(F.text == "⚙️ Настройки анонимности")
 async def settings(message: types.Message):
@@ -69,25 +71,13 @@ async def settings(message: types.Message):
     builder.row(types.InlineKeyboardButton(text="Переключить статус", callback_data="toggle_anon"))
     await message.answer(f"Твой статус: {status}", reply_markup=builder.as_markup())
 
-@dp.callback_query(F.data == "toggle_anon")
-async def toggle_callback(callback: types.CallbackQuery):
-    toggle_anon_db(callback.from_user.id)
-    is_anon = get_anon(callback.from_user.id)
-    status = "✅ ВКЛ (Анонимно)" if is_anon else "❌ ВЫКЛ (Видно ник)"
-    
-    builder = InlineKeyboardBuilder()
-    builder.row(types.InlineKeyboardButton(text="Переключить статус", callback_data="toggle_anon"))
-    
-    # Редактируем старое сообщение, чтобы юзер видел изменения
-    await callback.message.edit_text(f"Твой статус изменен!\nТеперь: {status}", reply_markup=builder.as_markup())
-    await callback.answer()
-
-@dp.message(F.text.in_(["📥 Оставить жалобу", "💡 Оставить Предложение"]))
+# Исправленный обработчик: теперь он ловит и жалобы, и предложения независимо от регистра букв
+@dp.message(lambda message: message.text and ("жалоб" in message.text.lower() or "предложен" in message.text.lower()))
 async def start_fb(message: types.Message, state: FSMContext):
-    type_fb = "жалобу" if "жалоба" in message.text.lower() else "предложение"
+    type_fb = "жалобу" if "жалоб" in message.text.lower() else "предложение"
     await state.update_data(fb_type=type_fb)
     await state.set_state(Feedback.waiting_for_text)
-    await message.answer(f"Напишите {type_fb}:")
+    await message.answer(f"Напишите свою {type_fb}:")
 
 @dp.message(Feedback.waiting_for_text)
 async def get_fb(message: types.Message, state: FSMContext):
@@ -106,7 +96,7 @@ async def get_fb(message: types.Message, state: FSMContext):
     )
     await message.answer("Отправлено! Админ скоро ответит. Хотя лучше запаситесь терпением")
     await state.clear()
-
+    
 # --- ОТВЕТ АДМИНА ---
 
 @dp.callback_query(F.data.startswith("reply_"))
